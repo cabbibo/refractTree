@@ -1,0 +1,384 @@
+<!--
+
+  If you are reading this:
+
+  This code isn't very nice to look at :)
+
+  If there's something you see that you like, email us: who@tree.is
+  And we'll try to make it easier to understand!!!
+
+  Most of the shader code come from: https://www.shadertoy.com/view/ltlSRl
+  Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License
+
+  by Adam27 : https://www.shadertoy.com/user/adam27
+
+-->
+
+<html>
+
+  <head>
+    <style>
+      body{ margin: 0px;  background:#000;}
+      html{ overflow: hidden }
+      h1{
+        color:#111;
+        position:absolute;
+        width:100%;
+        bottom:20%;
+        text-align: center;
+        font-family: "Trebuchet MS", Helvetica, sans-serif;
+      }
+      h1:hover{
+
+        text-decoration: underline;
+        color:#666;
+      }
+    </style>
+  </head>
+
+  <body>
+ 
+    <script src = "lib/three.min.js"                ></script>
+    <script src = "lib/jquery.min.js"               ></script>
+    <script src = "lib/ShaderLoader.js"             ></script>
+    <script src = "lib/stats.min.js"                ></script>
+
+    <script src = "lib/TrackballControls.js"        ></script>
+    <script src = "lib/MouseMoveControls.js"        ></script>
+    <script src = "lib/ObjectControls.js"           ></script>
+    
+
+    <script src = "lib/Link.js"           ></script>
+
+
+
+
+    <script>
+
+    var frameSlow = 6;
+    var counter = 0;
+
+    var FIRST_FRAME;
+
+    var moving = false;
+
+      var camera, renderer, scene , controls , clock;
+      
+      var audioMesh;
+
+      // Setting up shaders
+      var shaders = new ShaderLoader( 'shaders' );
+
+      shaders.shaderSetLoaded = function(){
+        init();
+        animate();
+      }
+
+      shaders.load( 'vs-holo' , 'holo' , 'vertex'   );
+      //shaders.load( 'fs-holo' , 'holo' , 'fragment' );
+      shaders.load( 'fs-map1' , 'holo' , 'fragment' );
+      shaders.load( 'fs-tree' , 'tree' , 'fragment' );
+      //shaders.load( 'fs-bg' , 'bg' , 'fragment' );
+
+
+      // Normals For the Material
+      var uniforms = {
+
+        dT:       { type:"f"  , value : 0             },
+        time:     { type:"f"  , value : 0             },
+        
+
+        lightPosition1: { type:"v3" , value : new THREE.Vector3() },
+        lightPosition2: { type:"v3" , value : new THREE.Vector3() },
+        lightColor1   : { type:"v3" , value : new THREE.Vector3() },
+        lightColor2   : { type:"v3" , value : new THREE.Vector3() },
+       
+
+
+        parameter1: { type:"f"  , value : .5             },
+        parameter2: { type:"f"  , value : .5             },
+        parameter3: { type:"f"  , value : .5             },
+        parameter4: { type:"f"  , value : .5             },
+        parameter5: { type:"f"  , value : .5             },
+        parameter6: { type:"f"  , value : .5             },
+
+      }
+
+
+      function init(){
+
+        //textCreator = new TextCreator( 3 );
+
+
+        /*
+
+
+           Setting up THREE.js Scene
+
+
+        */
+
+        var w = window.innerWidth;
+        var h = window.innerHeight;
+
+        camera = new THREE.PerspectiveCamera( 65 , w/h , .1 , 20 );
+        camera.position.z = 6.5;
+        //camera.position.x = 3.5;
+
+        scene = new THREE.Scene();
+
+        var dpr = window.devicePixelRatio || 1;
+        renderer = new THREE.WebGLRenderer();
+        renderer.setPixelRatio( dpr );
+        renderer.setSize( window.innerWidth, window.innerHeight );
+
+        document.body.appendChild( renderer.domElement );
+
+
+        stats = new Stats();
+        stats.domElement.style.position = "absolute";
+        stats.domElement.style.left = "0px";
+        stats.domElement.style.bottom = "-30px";
+        stats.domElement.style.zIndex = "999";
+        //document.body.appendChild( stats.domElement );
+
+        window.addEventListener( 'resize', onWindowResize, false );
+        window.addEventListener( 'keydown', keydown, false );
+
+        clock = new THREE.Clock();
+
+
+        controls = new THREE.MouseMoveControls( camera );
+        //controls = new THREE.TrackballControls( camera );
+
+        objectControls = new ObjectControls( camera );
+
+
+
+        var geo = new THREE.IcosahedronGeometry( 2.5 , 2 );
+        var position = new THREE.Vector3(0,0,0 );
+        var textPosition = new THREE.Vector3( 0 , -1 , 3 );
+
+        tree = new Link( geo , uniforms , shaders.fs.tree , mainClick , "Tree Computer Inc." , position, textPosition ) 
+
+
+
+
+
+        var geo = new THREE.IcosahedronGeometry( .5 , 2 );
+
+
+        var position = new THREE.Vector3( 4 , 2 , .8 );
+        var textPosition = new THREE.Vector3( 0 , -.6 , 0);
+
+        var lightColor = new THREE.Vector3( 1 , 0 , 0 );
+
+        uniforms.lightColor1.value.copy( lightColor );
+        tweet = new Link( geo , uniforms , shaders.fs.holo , function(){window.open( 'https://twitter.com/vrtree' , '_blank' );}, "Tweet Luke & Isaac" , position,textPosition , lightColor )
+ 
+ 
+
+
+        var position = new THREE.Vector3( -3 , 1.5 , 2.8 );
+        var textPosition = new THREE.Vector3( 0 , -.6 , 0);
+        var lightColor = new THREE.Vector3( 0 , 0 , 1 );
+        uniforms.lightColor2.value.copy( lightColor );
+
+        email = new Link( geo , uniforms , shaders.fs.holo ,  function(){window.open( 'mailto:who@tree.is'  , '_blank' );}, "Email Luke & Isaac" , position,textPosition,  lightColor  );
+ 
+
+        tree.hoverOut();
+
+
+      }
+
+      function mainClick(){
+
+        console.log( 'HEY' ); 
+
+        var color1 = new THREE.Vector3( Math.random() , Math.random() , Math.random() );
+        var color2 = new THREE.Vector3( Math.random() , Math.random() , Math.random() );
+
+        uniforms.lightColor1.value.copy( color1 );
+        uniforms.lightColor2.value.copy( color2 );
+
+        tweet.updateColor( color1 );
+        email.updateColor( color2 );
+
+      }
+      
+      function animate(){
+
+        requestAnimationFrame( animate );
+
+        counter ++;
+
+        //if( counter == frameSlow ){
+          counter = 0;
+          renderer.render( scene , camera );
+        //}
+       
+        stats.update();
+        uniforms.dT.value = clock.getDelta();
+        uniforms.time.value += uniforms.dT.value;
+
+        tweet.mesh.position.x = .5 + 2. * Math.cos( uniforms.time.value * .4 + Math.PI * 0 );
+        tweet.mesh.position.y = .5 + 1. * Math.sin( uniforms.time.value * .4 + Math.PI * 0 );
+        tweet.mesh.position.z = 3;
+        tweet.mesh.rotation.x += .01 * Math.sin( tweet.mesh.position.x )
+        tweet.mesh.rotation.y += .01 * Math.sin( tweet.mesh.position.y )
+        tweet.mesh.rotation.z += .01 * Math.sin( tweet.mesh.position.z )
+        tweet.update();
+
+        uniforms.lightPosition1.value.copy( tweet.mesh.position );
+
+        email.mesh.position.x = -.5 + 2. * Math.cos( uniforms.time.value * .4 + Math.PI * 1 );
+        email.mesh.position.y = .5 + 1. * Math.sin( uniforms.time.value * .4 + Math.PI * 1 );
+        email.mesh.position.z = 3;
+        email.mesh.rotation.x += .01 * Math.sin( email.mesh.position.x )
+        email.mesh.rotation.y += .01 * Math.sin( email.mesh.position.y )
+        email.mesh.rotation.z += .01 * Math.sin( email.mesh.position.z )
+        email.update();
+
+        uniforms.lightPosition2.value.copy( email.mesh.position );
+
+
+        controls.update();
+        objectControls.update();
+        if( !FIRST_FRAME ){
+          console.log('agagsgsg')
+          tree.hoverOut();
+          FIRST_FRAME = true;
+        }
+
+
+      }
+
+      function keydown( e ) {
+        //console.log( e )
+        if( e.keyCode == 82 )
+          renderer.render( scene , camera );
+
+        console.log( e.keyCode )
+
+        if( e.keyCode == 49 ){ uniforms.parameter1.value  += .1 }
+        if( e.keyCode == 81 ){ uniforms.parameter1.value  -= .1 }
+
+        if( e.keyCode == 50 ){ uniforms.parameter2.value  += .1 }
+        if( e.keyCode == 87 ){ uniforms.parameter2.value  -= .1 }
+
+        if( e.keyCode == 51 ){ uniforms.parameter3.value  += .1 }
+        if( e.keyCode == 69 ){ uniforms.parameter3.value  -= .1 }
+
+        if( e.keyCode == 52 ){ uniforms.parameter4.value  += .1 }
+        if( e.keyCode == 82 ){ uniforms.parameter4.value  -= .1 }
+
+        if( e.keyCode == 53 ){ uniforms.parameter5.value  += .1 }
+        if( e.keyCode == 84 ){ uniforms.parameter5.value  -= .1 }
+
+        if( e.keyCode == 54 ){ uniforms.parameter6.value  += .1 }
+        if( e.keyCode == 89 ){ uniforms.parameter6.value  -= .1 }
+
+        if( e.keyCode == 32 ){ toggleMovement(); }
+
+      }
+
+      function toggleMovement(){
+
+        moving = !moving;
+
+      }
+
+
+      function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+
+      function createTextMesh( size  ,  text ){
+    
+        var canvas  = document.createElement('canvas');
+
+
+        var fullSize = 30000;
+        var margin = 40;
+
+        var ctx     = canvas.getContext( '2d' ); 
+
+
+        ctx.font      = fullSize / 100 + "pt GeoSans";
+        var textWidth = ctx.measureText( text ).width;
+
+        canvas.width  = textWidth + margin;
+        canvas.height = fullSize / 100 + margin;
+
+       
+        // Creates a texture
+        var texture = new THREE.Texture(canvas);
+
+
+        updateTextTexture( text , canvas , ctx , texture , textWidth )
+
+
+        var mesh = new THREE.Mesh( 
+          new THREE.PlaneBufferGeometry( 1 , 1 ), 
+          new THREE.MeshBasicMaterial({ 
+            map: texture,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+
+          })
+        );
+
+        mesh.scale.y = canvas.height;
+        mesh.scale.x = canvas.width;
+        mesh.scale.multiplyScalar( .1  * (size / 100));
+
+        mesh.texture = texture;
+        mesh.canvas = canvas;
+        mesh.ctx = ctx;
+        mesh.textWidth = textWidth;
+
+        return mesh;
+
+
+      }
+
+      function updateTextTexture( string , canvas , ctx , texture , textWidth ){
+
+        var fullSize = 30000;
+        var margin = 1000000;
+
+        ctx.fillStyle = "rgba(0,0,0,1)";
+        ctx.fillRect(
+            canvas.width / 2 - textWidth / 2 - margin / 2, 
+            canvas.height / 2 - fullSize / 2  + margin / 2, 
+            textWidth + margin, 
+            fullSize + margin
+        );
+
+        // Makes sure our text is centered
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#ffffff";
+        ctx.font      = fullSize / 150 + "pt Trebuchet MS";
+        ctx.fillText( string , canvas.width / 2, canvas.height / 2);
+
+
+        texture.needsUpdate = true;
+
+
+      }
+
+
+
+    </script>
+
+  </body>
+</html>
